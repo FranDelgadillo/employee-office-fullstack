@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:15.5
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+      start_period: 30s
+
+  employee-office-api:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../employee-office-frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=http://employee-office-api:8080/api/v1
+    depends_on:
+      - employee-office-api
+    networks:
+      - default
+
+volumes:
+  postgres_data:
